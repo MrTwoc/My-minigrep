@@ -2,6 +2,7 @@ use std::env;
 use std::fs;
 
 fn main() {
+    // 接收输入的参数
     let arge :Vec<String> = env::args().collect();
     
     // query, file_name :  查找内容, 文件名
