@@ -1,9 +1,17 @@
 use std::error::Error;
 use std::fs;
+use std::env;
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>>{
     let contents = fs::read_to_string(config.file_name)?;
-    for line in search(&config.query, &contents){
+
+    let results = if config.case_sensitive{
+        search(&config.query, &contents)
+    } else {
+        search_case_insensitive(&config.query, &contents)
+    };
+
+    for line in results{
         println!("{}", line);
     }
     // println!("文件内容：\n{}", contents);
@@ -11,8 +19,9 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>>{
 }
 
 pub struct Config{
-    query: String,
-    file_name: String,
+    pub query: String,
+    pub file_name: String,
+    pub case_sensitive: bool,
 }
 
 impl Config {
@@ -23,8 +32,9 @@ impl Config {
         // query, file_name :  查找内容, 文件名
         let query = args[1].clone();
         let file_name = args[2].clone();
+        let case_sensitive = env::var("CASE_INSENSITIVE").is_err();
     
-        Ok(Config{query, file_name})
+        Ok(Config{query, file_name, case_sensitive})
     }
 }
 
@@ -39,17 +49,45 @@ pub fn search<'a>(query: &str, contents: &'a str) -> Vec<&'a str>{
     results
 }
 
+pub fn search_case_insensitive<'a>(query: &str, contents: &'a str) -> Vec<&'a str>{
+    let mut results = Vec::new();
+    let query = query.to_lowercase();
+
+    for line in contents.lines(){
+        if line.to_lowercase().contains(&query){
+            results.push(line);
+        }
+    }
+    results
+}
+
 #[cfg(test)]
 mod tests{
     use super::*;
 
     #[test]
-    fn on_result(){
+    fn case_sensitive(){
         let query = "duct";
         let contents = "\
 Rust:
 safe, fast, productive.
-Pick three.";
+Pick three.
+Duck tape.";
         assert_eq!(vec!["safe, fast, productive."], search(query, contents));
+    }
+
+    #[test]
+    fn case_insensitive(){
+        let query = "rUsT";
+        let contents = "\
+Rust:
+safe, fast, productive.
+Pick three.
+Trust me.";
+
+        assert_eq!(
+            vec!["Rust:", "Trust me."],
+            search_case_insensitive(query, contents)
+        )
     }
 }
